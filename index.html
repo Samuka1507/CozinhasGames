@@ -350,7 +350,6 @@
             sausage: 'salsicha', bun: 'pão', ketchup: 'ketchup', mustard: 'mostarda'
         };
 
-        // Mapas base (abertos) – agora com bancadas (12) e pia (13)
         function createMap() {
             return [
                 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -397,14 +396,14 @@
         let message = '', messageTimer = 0;
         let MAP = createMap();
         let plateStation = { x: 13, y: 3, plate: null };
-        let processings = []; // array de processamentos
+        let processings = [];
         let currentTheme = 'burger';
         let currentRecipes = THEMES.burger.recipes;
         let availableIngredients = THEMES.burger.ingredients;
         let totalPlates = 0;
         let cleanPlatesAvailable = 0;
-        let storedItems = {}; // chave: "x,y" => item
-        let pendingOrders = []; // fila de pedidos a serem adicionados
+        let storedItems = {};
+        let pendingOrders = [];
         let orderTimeouts = [];
 
         let levelStars = {};
@@ -528,7 +527,6 @@
             message = '';
             initPlayers();
 
-            // Agenda ordens com timeouts
             level.orders.forEach((r, i) => {
                 const id = setTimeout(() => {
                     if (pendingOrders.length > 0) {
@@ -598,7 +596,7 @@
             gameState = 'help';
             showOverlay('Ajuda', `
                 Pegue ingredientes → Processe (🔪 ou 🔥) → Monte na 🍽️ → Entregue na 📦<br><br>
-                Bancadas (📦) permitem guardar itens. Pia (🚰) lava pratos sujos.
+                Bancadas (📋) permitem guardar itens. Pia (🚰) lava pratos sujos.
             `, true, 'Fechar');
         }
 
@@ -631,7 +629,7 @@
         }
 
         function interact(player) {
-            if (processings.some(p => p.playerId === player.id)) return; // impede interagir enquanto processa
+            if (processings.some(p => p.playerId === player.id)) return;
             const now = Date.now();
             if (now - lastInteract[player.id] < 250) return;
             lastInteract[player.id] = now;
@@ -653,9 +651,33 @@
                 return;
             }
 
-            // Bancada de apoio (guardar/pegar qualquer item)
+            // Bancada de apoio
             if (station === 'counter') {
                 const key = `${tx},${ty}`;
+                const item = storedItems[key];
+
+                // Se estiver com prato e houver alimento processado na bancada
+                if (player.holding && player.holding.type === 'plate' && item && item.type !== 'plate') {
+                    if (player.holding.dirty) {
+                        showMsg('Prato sujo! Lave na pia');
+                        return;
+                    }
+                    if (item.state !== 'chopped' && item.state !== 'cooked') {
+                        showMsg('Processe o alimento antes!');
+                        return;
+                    }
+                    if (player.holding.contents.some(c => c.type === item.type)) {
+                        showMsg('Já tem esse item no prato');
+                        return;
+                    }
+                    player.holding.contents.push({ type: item.type, state: item.state });
+                    delete storedItems[key];
+                    showMsg(`+ ${ING_NAME[item.type] || item.type}`);
+                    updateOrdersUI();
+                    return;
+                }
+
+                // Comportamento padrão
                 if (player.holding) {
                     if (!storedItems[key]) {
                         storedItems[key] = player.holding;
@@ -676,7 +698,7 @@
                 return;
             }
 
-            // Pia (lavar pratos sujos)
+            // Pia
             if (station === 'sink') {
                 if (player.holding && player.holding.type === 'plate' && player.holding.dirty) {
                     processings.push({ playerId: player.id, type: 'wash', progress: 0, x: tx, y: ty, item: player.holding });
@@ -720,18 +742,28 @@
 
         function handlePlateStation(player) {
             const h = player.holding;
+
+            // Sem nada na mão
             if (!h) {
-                // Pegar um prato limpo da pilha
+                if (plateStation.plate) {
+                    player.holding = plateStation.plate;
+                    plateStation.plate = null;
+                    showMsg('Prato pego da estação');
+                    updateOrdersUI();
+                    return;
+                }
                 if (cleanPlatesAvailable > 0) {
                     player.holding = { type: 'plate', contents: [], dirty: false };
                     cleanPlatesAvailable--;
                     showMsg('Pegou prato limpo');
-                } else {
-                    showMsg('Sem pratos limpos');
+                    updateOrdersUI();
+                    return;
                 }
+                showMsg('Sem pratos disponíveis');
                 return;
             }
 
+            // Segurando prato
             if (h.type === 'plate') {
                 if (h.dirty) {
                     showMsg('Lave o prato antes de guardar');
@@ -741,13 +773,34 @@
                     showMsg('Prato com comida não pode ser guardado');
                     return;
                 }
-                // Guardar prato limpo
-                cleanPlatesAvailable++;
+                if (plateStation.plate) {
+                    showMsg('Já há um prato na estação');
+                    return;
+                }
+                plateStation.plate = h;
                 player.holding = null;
-                showMsg('Prato guardado');
-            } else {
-                showMsg('Só guarda pratos');
+                showMsg('Prato colocado na estação');
+                updateOrdersUI();
+                return;
             }
+
+            // Segurando alimento
+            if (!plateStation.plate) {
+                showMsg('Coloque um prato primeiro');
+                return;
+            }
+            if (h.state !== 'chopped' && h.state !== 'cooked') {
+                showMsg('Processe o alimento antes!');
+                return;
+            }
+            if (plateStation.plate.contents.some(c => c.type === h.type)) {
+                showMsg('Já tem esse item no prato');
+                return;
+            }
+            plateStation.plate.contents.push({ type: h.type, state: h.state });
+            player.holding = null;
+            showMsg(`+ ${ING_NAME[h.type] || h.type}`);
+            updateOrdersUI();
         }
 
         function tryDeliver(player) {
@@ -764,7 +817,6 @@
                     if (player.id === 1) score1 += pts; else score2 += pts;
                     showMsg(`✅ ${orders[i].name} +${pts} | Prato sujo!`);
                     orders.splice(i, 1);
-                    // Prato fica sujo, permanece na mão
                     player.holding.dirty = true;
                     player.holding.contents = [];
                     updateUI(); updateOrdersUI();
@@ -793,7 +845,6 @@
             timeLeft -= dt;
             if (timeLeft <= 0) { timeLeft = 0; levelComplete(); return; }
 
-            // Processamentos (array)
             processings = processings.filter(proc => {
                 proc.progress += dt * (proc.type === 'chop' ? 2.8 : proc.type === 'cook' ? 2.0 : 1.5);
                 if (proc.progress >= 1) {
@@ -808,7 +859,7 @@
                         }
                         p.holding = proc.item;
                     }
-                    return false; // remove
+                    return false;
                 }
                 return true;
             });
@@ -898,7 +949,6 @@
                 }
             }
 
-            // Mostrar pilha de pratos limpos na estação de pratos
             if (cleanPlatesAvailable > 0) {
                 const sx = 13 * TILE + TILE / 2, sy = 3 * TILE - 10;
                 ctx.font = '14px sans-serif';
@@ -908,7 +958,6 @@
                 ctx.fillText(`🍽️ x${cleanPlatesAvailable}`, sx, sy - 13);
             }
 
-            // Mostrar itens guardados em bancadas
             for (const [key, item] of Object.entries(storedItems)) {
                 const [cx, cy] = key.split(',').map(Number);
                 const sx = cx * TILE + TILE / 2, sy = cy * TILE - 10;
@@ -927,7 +976,6 @@
                 ctx.fillText(label, sx, sy - 11);
             }
 
-            // Processamentos (barras de progresso)
             processings.forEach(proc => {
                 const sx = proc.x * TILE, sy = proc.y * TILE;
                 ctx.fillStyle = 'rgba(0,0,0,0.7)';
