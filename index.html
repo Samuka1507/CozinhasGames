@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cozinha Coop - Fases & Estrelas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #eee;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            margin-top: 10px;
+        }
+
+        canvas {
+            background: #2d3436;
+            border: 4px solid #00cec9;
+            border-radius: 12px;
+            display: block;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        #ui {
+            width: 960px;
+            max-width: 96vw;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: rgba(15, 20, 40, 0.95);
+            border-radius: 12px 12px 0 0;
+            font-size: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+            border: 1px solid #00cec9;
+            border-bottom: none;
+        }
+
+        .score-box {
+            background: linear-gradient(145deg, #1a1a4a, #0f3460);
+            padding: 8px 14px;
+            border-radius: 10px;
+            min-width: 110px;
+            text-align: center;
+            border: 1px solid #00cec9;
+        }
+
+        .score-box strong {
+            color: #00cec9;
+            font-size: 18px;
+        }
+
+        #orders {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            max-width: 520px;
+        }
+
+        .order {
+            background: linear-gradient(145deg, #e17055, #d63031);
+            color: #fff;
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            position: relative;
+            min-width: 110px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .order .name {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .order .ings {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .order .ing {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .order .ing.have {
+            background: #00b894;
+            box-shadow: 0 0 6px #00b894;
+        }
+
+        .order .ing.missing {
+            background: #636e72;
+        }
+
+        .order .timer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: #ffeaa7;
+            border-radius: 0 0 8px 8px;
+        }
+
+        #level-info {
+            background: linear-gradient(145deg, #6c5ce7, #a29bfe);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-weight: 700;
+        }
+
+        .screen {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 10, 30, 0.96);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            border-radius: 12px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .screen h1 {
+            font-size: 3rem;
+            color: #00cec9;
+            text-shadow: 0 0 30px #00cec9;
+            margin-bottom: 8px;
+        }
+
+        .screen h2 {
+            color: #ffeaa7;
+            margin-bottom: 24px;
+            font-weight: 500;
+        }
+
+        .screen p {
+            max-width: 500px;
+            line-height: 1.6;
+            margin-bottom: 12px;
+            color: #dfe6e9;
+        }
+
+        .btn {
+            padding: 14px 40px;
+            font-size: 1.2rem;
+            background: linear-gradient(145deg, #00b894, #00cec9);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            box-shadow: 0 6px 20px rgba(0, 206, 201, 0.4);
+            transition: all 0.15s;
+            margin: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 28px rgba(0, 206, 201, 0.55);
+        }
+
+        .btn.secondary {
+            background: linear-gradient(145deg, #6c5ce7, #a29bfe);
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
+        }
+
+        .btn:disabled {
+            background: #636e72;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.6;
+        }
+
+        #level-select-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            max-width: 720px;
+            margin: 20px 0;
+        }
+
+        .level-card {
+            background: linear-gradient(145deg, #1a1a4a, #16213e);
+            border: 2px solid #00cec9;
+            border-radius: 14px;
+            padding: 16px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 140px;
+        }
+
+        .level-card:hover:not(.locked) {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 206, 201, 0.35);
+            border-color: #ffeaa7;
+        }
+
+        .level-card.locked {
+            opacity: 0.45;
+            cursor: not-allowed;
+            border-color: #636e72;
+        }
+
+        .level-card .num {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #00cec9;
+        }
+
+        .level-card .theme {
+            font-size: 12px;
+            color: #a29bfe;
+            margin: 4px 0;
+        }
+
+        .level-card .stars {
+            font-size: 18px;
+            letter-spacing: 2px;
+            margin-top: 6px;
+        }
+
+        .level-card .req {
+            font-size: 11px;
+            color: #ff7675;
+            margin-top: 4px;
+        }
+
+        .total-stars {
+            font-size: 1.3rem;
+            color: #ffeaa7;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="ui">
+        <div class="score-box">
+            <div>Player 1</div><strong id="score1">0</strong>
+        </div>
+        <div class="score-box">
+            <div>Equipe</div><strong id="scoreTeam">0</strong>
+        </div>
+        <div class="score-box">
+            <div>Player 2</div><strong id="score2">0</strong>
+        </div>
+        <div id="level-info">Nível 1</div>
+        <div id="orders"></div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="game" width="960" height="560"></canvas>
+
+        <div id="screen-menu" class="screen">
+            <h1>🍳 Cozinha Coop</h1>
+            <h2>Multiplayer Local • Estrelas • Temas</h2>
+            <p>Prepare pedidos em equipe, ganhe estrelas e desbloqueie novos temas de cozinha!</p>
+            <p style="font-size:13px;color:#b2bec3">
+                Player 1: WASD + E &nbsp;|&nbsp; Player 2: Setas + Enter
+            </p>
+            <button class="btn" onclick="showLevelSelect()">Jogar</button>
+            <button class="btn secondary" onclick="toggleHelpMenu()">Como Jogar</button>
+        </div>
+
+        <div id="screen-levels" class="screen" style="display:none;">
+            <h1>Escolha a Fase</h1>
+            <div class="total-stars">⭐ Estrelas totais: <span id="totalStarsDisplay">0</span></div>
+            <div id="level-select-grid"></div>
+            <button class="btn secondary" onclick="showMenu()">← Voltar</button>
+        </div>
+
+        <div id="overlay" class="screen" style="display:none;"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const TILE = 40;
+        const COLS = 24;
+        const ROWS = 14;
+
+        // ==================== TEMAS & MAPAS ====================
+        const THEMES = {
+            burger: {
+                name: 'Hambúrguer',
+                color: '#e17055',
+                ingredients: ['tomato', 'lettuce', 'meat', 'bread'],
+                recipes: {
+                    salad: { name: 'Salada', ingredients: ['tomato', 'lettuce'], points: 45 },
+                    meat: { name: 'Carne', ingredients: ['meat'], points: 40 },
+                    toast: { name: 'Torrada', ingredients: ['bread', 'tomato'], points: 45 },
+                    burger: { name: 'Hambúrguer', ingredients: ['bread', 'meat', 'tomato'], points: 70 }
+                }
+            },
+            sushi: {
+                name: 'Sushi',
+                color: '#00cec9',
+                ingredients: ['rice', 'fish', 'seaweed', 'avocado'],
+                recipes: {
+                    nigiri: { name: 'Nigiri', ingredients: ['rice', 'fish'], points: 50 },
+                    maki: { name: 'Maki', ingredients: ['rice', 'seaweed', 'fish'], points: 60 },
+                    avocado: { name: 'Avocado Roll', ingredients: ['rice', 'avocado', 'seaweed'], points: 55 },
+                    sashimi: { name: 'Sashimi', ingredients: ['fish'], points: 40 }
+                }
+            },
+            hotdog: {
+                name: 'Hot Dog',
+                color: '#fdcb6e',
+                ingredients: ['sausage', 'bun', 'ketchup', 'mustard'],
+                recipes: {
+                    plain: { name: 'Hot Dog Simples', ingredients: ['sausage', 'bun'], points: 45 },
+                    classic: { name: 'Clássico', ingredients: ['sausage', 'bun', 'ketchup'], points: 55 },
+                    mustard: { name: 'Mostarda', ingredients: ['sausage', 'bun', 'mustard'], points: 55 },
+                    special: { name: 'Especial', ingredients: ['sausage', 'bun', 'ketchup', 'mustard'], points: 75 }
+                }
+            }
+        };
+
+        const ING_ICON = {
+            tomato: '🍅', lettuce: '🥬', meat: '🥩', bread: '🍞',
+            rice: '🍚', fish: '🐟', seaweed: '🌿', avocado: '🥑',
+            sausage: '🌭', bun: '🥖', ketchup: '🍅', mustard: '🟡'
+        };
+        const ING_NAME = {
+            tomato: 'tomate', lettuce: 'alface', meat: 'carne', bread: 'pão',
+            rice: 'arroz', fish: 'peixe', seaweed: 'alga', avocado: 'abacate',
+            sausage: 'salsicha', bun: 'pão', ketchup: 'ketchup', mustard: 'mostarda'
+        };
+
+        // Mapas base (abertos) – agora com bancadas (12) e pia (13)
+        function createMap() {
+            return [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 0, 2, 12, 2, 0, 0, 2, 2, 2, 0, 0, 2, 2, 2, 0, 0, 2, 12, 2, 0, 0, 1],
+                [1, 0, 0, 8, 0, 9, 0, 0, 3, 0, 4, 0, 0, 5, 0, 6, 0, 0, 10, 0, 11, 0, 0, 1],
+                [1, 0, 0, 2, 2, 2, 0, 0, 2, 2, 2, 0, 0, 2, 2, 2, 0, 0, 2, 2, 2, 0, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 0, 12, 13, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 2, 2, 0, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            ];
+        }
+
+        // ==================== NÍVEIS ====================
+        const LEVELS = [
+            { id: 1, theme: 'burger', name: 'Burger 1', time: 100, orders: ['salad', 'meat', 'salad'], goal: 70, starsRequired: 0, plates: 2 },
+            { id: 2, theme: 'burger', name: 'Burger 2', time: 95, orders: ['burger', 'toast', 'meat', 'salad'], goal: 120, starsRequired: 1, plates: 3 },
+            { id: 3, theme: 'burger', name: 'Burger 3', time: 90, orders: ['burger', 'burger', 'toast', 'salad', 'meat'], goal: 160, starsRequired: 2, plates: 3 },
+
+            { id: 4, theme: 'sushi', name: 'Sushi 1', time: 100, orders: ['nigiri', 'sashimi', 'nigiri'], goal: 80, starsRequired: 4, plates: 2 },
+            { id: 5, theme: 'sushi', name: 'Sushi 2', time: 95, orders: ['maki', 'avocado', 'nigiri', 'sashimi'], goal: 130, starsRequired: 6, plates: 3 },
+            { id: 6, theme: 'sushi', name: 'Sushi 3', time: 90, orders: ['maki', 'avocado', 'maki', 'nigiri', 'sashimi'], goal: 180, starsRequired: 8, plates: 4 },
+
+            { id: 7, theme: 'hotdog', name: 'HotDog 1', time: 100, orders: ['plain', 'classic', 'plain'], goal: 80, starsRequired: 10, plates: 3 },
+            { id: 8, theme: 'hotdog', name: 'HotDog 2', time: 95, orders: ['classic', 'mustard', 'special', 'plain'], goal: 140, starsRequired: 12, plates: 3 },
+            { id: 9, theme: 'hotdog', name: 'HotDog 3', time: 90, orders: ['special', 'classic', 'mustard', 'special', 'plain'], goal: 190, starsRequired: 15, plates: 4 }
+        ];
+
+        // ==================== ESTADO ====================
+        let gameState = 'menu';
+        let currentLevelIndex = 0;
+        let timeLeft = 0;
+        let score1 = 0, score2 = 0, scoreTeam = 0;
+        let orders = [];
+        let players = [];
+        let keys = {};
+        let lastInteract = { 1: 0, 2: 0 };
+        let message = '', messageTimer = 0;
+        let MAP = createMap();
+        let plateStation = { x: 13, y: 3, plate: null };
+        let processings = []; // array de processamentos
+        let currentTheme = 'burger';
+        let currentRecipes = THEMES.burger.recipes;
+        let availableIngredients = THEMES.burger.ingredients;
+        let totalPlates = 0;
+        let cleanPlatesAvailable = 0;
+        let storedItems = {}; // chave: "x,y" => item
+        let pendingOrders = []; // fila de pedidos a serem adicionados
+        let orderTimeouts = [];
+
+        let levelStars = {};
+        let canUseStorage = false;
+
+        (function initStorage() {
+            try {
+                const ls = window['localStorage'];
+                if (!ls) return;
+                const key = '__cozinha_test__';
+                ls.setItem(key, '1');
+                ls.removeItem(key);
+                canUseStorage = true;
+                const raw = ls.getItem('cozinhaStars');
+                if (raw) levelStars = JSON.parse(raw) || {};
+            } catch (e) {
+                canUseStorage = false;
+                levelStars = {};
+            }
+        })();
+
+        function getTotalStars() {
+            return Object.values(levelStars).reduce((a, b) => a + b, 0);
+        }
+
+        function saveStars(levelId, stars) {
+            const prev = levelStars[levelId] || 0;
+            if (stars > prev) {
+                levelStars[levelId] = stars;
+                if (canUseStorage) {
+                    try {
+                        window['localStorage'].setItem('cozinhaStars', JSON.stringify(levelStars));
+                    } catch (e) {
+                        canUseStorage = false;
+                    }
+                }
+            }
+        }
+
+        // ==================== TELAS ====================
+        function showMenu() {
+            gameState = 'menu';
+            document.getElementById('screen-menu').style.display = 'flex';
+            document.getElementById('screen-levels').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('ui').style.display = 'none';
+        }
+
+        function showLevelSelect() {
+            gameState = 'levelselect';
+            document.getElementById('screen-menu').style.display = 'none';
+            document.getElementById('screen-levels').style.display = 'flex';
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('ui').style.display = 'none';
+            renderLevelSelect();
+        }
+
+        function renderLevelSelect() {
+            const grid = document.getElementById('level-select-grid');
+            const total = getTotalStars();
+            document.getElementById('totalStarsDisplay').textContent = total;
+            grid.innerHTML = '';
+
+            LEVELS.forEach((lvl, idx) => {
+                const earned = levelStars[lvl.id] || 0;
+                const unlocked = total >= lvl.starsRequired;
+                const card = document.createElement('div');
+                card.className = 'level-card' + (unlocked ? '' : ' locked');
+
+                const starsStr = '★'.repeat(earned) + '☆'.repeat(3 - earned);
+                const themeName = THEMES[lvl.theme].name;
+
+                card.innerHTML = `
+                    <div class="num">${lvl.id}</div>
+                    <div class="theme">${themeName}</div>
+                    <div style="font-size:13px;margin:4px 0">${lvl.name}</div>
+                    <div class="stars">${starsStr}</div>
+                    ${!unlocked ? `<div class="req">Precisa ${lvl.starsRequired}⭐</div>` : ''}
+                `;
+
+                if (unlocked) {
+                    card.onclick = () => startLevel(idx);
+                }
+                grid.appendChild(card);
+            });
+        }
+
+        function toggleHelpMenu() {
+            showOverlay('Como Jogar', `
+                <p><strong>Objetivo:</strong> Monte e entregue os pedidos antes do tempo acabar.</p>
+                <p><strong>Estrelas:</strong><br>
+                ★ = meta de pontos<br>
+                ★★ = meta + tempo sobrando<br>
+                ★★★ = desempenho excelente</p>
+                <p>Desbloqueie novos temas (Sushi, Hot Dog...) ganhando estrelas!</p>
+                <p>Player 1: WASD + E<br>Player 2: Setas + Enter</p>
+            `, true, 'Fechar');
+        }
+
+        // ==================== JOGO ====================
+        function startLevel(index) {
+            clearOrderTimeouts();
+            currentLevelIndex = index;
+            const level = LEVELS[index];
+            currentTheme = level.theme;
+            currentRecipes = THEMES[level.theme].recipes;
+            availableIngredients = THEMES[level.theme].ingredients;
+
+            MAP = createMap();
+            remapIngredients();
+
+            timeLeft = level.time;
+            score1 = score2 = scoreTeam = 0;
+            orders = [];
+            plateStation.plate = null;
+            processings = [];
+            storedItems = {};
+            pendingOrders = [...level.orders];
+            totalPlates = level.plates;
+            cleanPlatesAvailable = totalPlates;
+            message = '';
+            initPlayers();
+
+            // Agenda ordens com timeouts
+            level.orders.forEach((r, i) => {
+                const id = setTimeout(() => {
+                    if (pendingOrders.length > 0) {
+                        const next = pendingOrders.shift();
+                        addOrder(next);
+                    }
+                }, 800 + i * 5500);
+                orderTimeouts.push(id);
+            });
+
+            document.getElementById('level-info').textContent = `${level.name} (${THEMES[level.theme].name})`;
+            document.getElementById('screen-levels').style.display = 'none';
+            document.getElementById('ui').style.display = 'flex';
+            gameState = 'playing';
+            updateUI();
+            updateOrdersUI();
+        }
+
+        function clearOrderTimeouts() {
+            orderTimeouts.forEach(clearTimeout);
+            orderTimeouts = [];
+        }
+
+        function remapIngredients() {
+            // tiles 8-11 serão interpretados conforme availableIngredients
+        }
+
+        function initPlayers() {
+            players = [
+                { id: 1, x: 4, y: 7, color: '#0984e3', holding: null, name: 'P1', facing: 1 },
+                { id: 2, x: 19, y: 7, color: '#e17055', holding: null, name: 'P2', facing: -1 }
+            ];
+        }
+
+        function addOrder(key) {
+            const recipe = currentRecipes[key];
+            if (!recipe) return;
+            orders.push({
+                key,
+                name: recipe.name,
+                ingredients: [...recipe.ingredients],
+                points: recipe.points,
+                time: 55,
+                maxTime: 55,
+                color: THEMES[currentTheme].color
+            });
+            updateOrdersUI();
+        }
+
+        // Controles
+        window.addEventListener('keydown', e => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key === 'F1' && gameState === 'playing') { e.preventDefault(); toggleHelp(); }
+            if (e.key === 'Escape') {
+                if (gameState === 'playing') {
+                    gameState = 'paused';
+                    showOverlay('PAUSADO', 'ESC = continuar', true, 'Continuar');
+                } else if (gameState === 'paused') {
+                    gameState = 'playing';
+                    hideOverlay();
+                }
+            }
+        });
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        function toggleHelp() {
+            gameState = 'help';
+            showOverlay('Ajuda', `
+                Pegue ingredientes → Processe (🔪 ou 🔥) → Monte na 🍽️ → Entregue na 📦<br><br>
+                Bancadas (📦) permitem guardar itens. Pia (🚰) lava pratos sujos.
+            `, true, 'Fechar');
+        }
+
+        function getIngredientFromTile(tile) {
+            const idx = tile - 8;
+            return availableIngredients[idx] || null;
+        }
+
+        function canMove(x, y) {
+            const tx = Math.floor(x), ty = Math.floor(y);
+            if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return false;
+            return MAP[ty][tx] === 0;
+        }
+
+        function getStation(tx, ty) {
+            if (ty < 0 || tx < 0 || ty >= ROWS || tx >= COLS) return null;
+            const t = MAP[ty][tx];
+            switch (t) {
+                case 3: return 'stove';
+                case 4: return 'board';
+                case 5: return 'plate';
+                case 6: return 'delivery';
+                case 7: return 'trash';
+                case 12: return 'counter';
+                case 13: return 'sink';
+                default:
+                    if (t >= 8 && t <= 11) return getIngredientFromTile(t);
+                    return null;
+            }
+        }
+
+        function interact(player) {
+            if (processings.some(p => p.playerId === player.id)) return; // impede interagir enquanto processa
+            const now = Date.now();
+            if (now - lastInteract[player.id] < 250) return;
+            lastInteract[player.id] = now;
+
+            const px = Math.round(player.x), py = Math.round(player.y);
+            for (const [dx, dy] of [[0, 0], [0, -1], [0, 1], [-1, 0], [1, 0]]) {
+                const station = getStation(px + dx, py + dy);
+                if (station) { handleStation(player, station, px + dx, py + dy); return; }
+            }
+        }
+
+        function handleStation(player, station, tx, ty) {
+            // Ingrediente
+            if (availableIngredients.includes(station)) {
+                if (!player.holding) {
+                    player.holding = { type: station, state: 'raw' };
+                    showMsg(`${player.name} pegou ${ING_NAME[station] || station}`);
+                }
+                return;
+            }
+
+            // Bancada de apoio (guardar/pegar qualquer item)
+            if (station === 'counter') {
+                const key = `${tx},${ty}`;
+                if (player.holding) {
+                    if (!storedItems[key]) {
+                        storedItems[key] = player.holding;
+                        player.holding = null;
+                        showMsg('Item deixado na bancada');
+                    } else {
+                        showMsg('Bancada ocupada');
+                    }
+                } else {
+                    if (storedItems[key]) {
+                        player.holding = storedItems[key];
+                        delete storedItems[key];
+                        showMsg('Item pego');
+                    } else {
+                        showMsg('Bancada vazia');
+                    }
+                }
+                return;
+            }
+
+            // Pia (lavar pratos sujos)
+            if (station === 'sink') {
+                if (player.holding && player.holding.type === 'plate' && player.holding.dirty) {
+                    processings.push({ playerId: player.id, type: 'wash', progress: 0, x: tx, y: ty, item: player.holding });
+                    player.holding = null;
+                    showMsg('Lavando prato...');
+                } else if (player.holding && player.holding.type === 'plate' && !player.holding.dirty) {
+                    showMsg('Prato já está limpo');
+                } else {
+                    showMsg('A pia só lava pratos');
+                }
+                return;
+            }
+
+            if (station === 'board') {
+                if (player.holding && player.holding.state === 'raw') {
+                    processings.push({ playerId: player.id, type: 'chop', progress: 0, x: tx, y: ty, item: player.holding });
+                    player.holding = null;
+                    showMsg('Processando...');
+                }
+                return;
+            }
+
+            if (station === 'stove') {
+                if (player.holding && player.holding.state === 'raw' &&
+                    (player.holding.type === 'meat' || player.holding.type === 'fish' || player.holding.type === 'sausage' || player.holding.type === 'rice')) {
+                    processings.push({ playerId: player.id, type: 'cook', progress: 0, x: tx, y: ty, item: player.holding });
+                    player.holding = null;
+                    showMsg('Cozinhando...');
+                }
+                return;
+            }
+
+            if (station === 'trash') {
+                if (player.holding) { player.holding = null; showMsg('Descartado'); }
+                return;
+            }
+
+            if (station === 'plate') { handlePlateStation(player); return; }
+            if (station === 'delivery') { tryDeliver(player); return; }
+        }
+
+        function handlePlateStation(player) {
+            const h = player.holding;
+            if (!h) {
+                // Pegar um prato limpo da pilha
+                if (cleanPlatesAvailable > 0) {
+                    player.holding = { type: 'plate', contents: [], dirty: false };
+                    cleanPlatesAvailable--;
+                    showMsg('Pegou prato limpo');
+                } else {
+                    showMsg('Sem pratos limpos');
+                }
+                return;
+            }
+
+            if (h.type === 'plate') {
+                if (h.dirty) {
+                    showMsg('Lave o prato antes de guardar');
+                    return;
+                }
+                if (h.contents.length > 0) {
+                    showMsg('Prato com comida não pode ser guardado');
+                    return;
+                }
+                // Guardar prato limpo
+                cleanPlatesAvailable++;
+                player.holding = null;
+                showMsg('Prato guardado');
+            } else {
+                showMsg('Só guarda pratos');
+            }
+        }
+
+        function tryDeliver(player) {
+            if (!player.holding || player.holding.type !== 'plate') return showMsg('Precisa de prato');
+            if (player.holding.dirty) return showMsg('Prato sujo! Lave na pia');
+            const contents = player.holding.contents.map(c => c.type).sort();
+            if (!contents.length) return showMsg('Prato vazio');
+
+            for (let i = 0; i < orders.length; i++) {
+                const needed = [...orders[i].ingredients].sort();
+                if (contents.length === needed.length && contents.every((v, j) => v === needed[j])) {
+                    const pts = orders[i].points + Math.floor(orders[i].time / 5);
+                    scoreTeam += pts;
+                    if (player.id === 1) score1 += pts; else score2 += pts;
+                    showMsg(`✅ ${orders[i].name} +${pts} | Prato sujo!`);
+                    orders.splice(i, 1);
+                    // Prato fica sujo, permanece na mão
+                    player.holding.dirty = true;
+                    player.holding.contents = [];
+                    updateUI(); updateOrdersUI();
+                    if (orders.length === 0 && pendingOrders.length === 0) setTimeout(levelComplete, 800);
+                    return;
+                }
+            }
+            showMsg('Não corresponde');
+        }
+
+        function getCurrentPlateContents() {
+            let contents = [];
+            if (plateStation.plate) contents = plateStation.plate.contents.map(c => c.type);
+            for (const p of players) {
+                if (p.holding?.type === 'plate' && !p.holding.dirty) {
+                    return p.holding.contents.map(c => c.type);
+                }
+            }
+            return contents;
+        }
+
+        // ==================== UPDATE & DRAW ====================
+        function update(dt) {
+            if (gameState !== 'playing') return;
+
+            timeLeft -= dt;
+            if (timeLeft <= 0) { timeLeft = 0; levelComplete(); return; }
+
+            // Processamentos (array)
+            processings = processings.filter(proc => {
+                proc.progress += dt * (proc.type === 'chop' ? 2.8 : proc.type === 'cook' ? 2.0 : 1.5);
+                if (proc.progress >= 1) {
+                    const p = players.find(pl => pl.id === proc.playerId);
+                    if (p) {
+                        if (proc.type === 'wash') {
+                            proc.item.dirty = false;
+                            showMsg('Prato lavado!');
+                        } else {
+                            proc.item.state = proc.type === 'chop' ? 'chopped' : 'cooked';
+                            showMsg(proc.type === 'chop' ? 'Pronto!' : 'Cozido!');
+                        }
+                        p.holding = proc.item;
+                    }
+                    return false; // remove
+                }
+                return true;
+            });
+
+            movePlayer(players[0], keys['w'], keys['s'], keys['a'], keys['d'], dt);
+            movePlayer(players[1], keys['arrowup'], keys['arrowdown'], keys['arrowleft'], keys['arrowright'], dt);
+            if (keys['e']) interact(players[0]);
+            if (keys['enter']) interact(players[1]);
+
+            orders.forEach(o => o.time -= dt);
+            const before = orders.length;
+            orders = orders.filter(o => o.time > 0);
+            if (orders.length < before) showMsg('⏰ Expirado');
+            updateOrdersUI();
+
+            if (messageTimer > 0) { messageTimer -= dt; if (messageTimer <= 0) message = ''; }
+        }
+
+        function movePlayer(p, up, down, left, right, dt) {
+            if (processings.some(proc => proc.playerId === p.id)) return;
+            let dx = 0, dy = 0;
+            if (up) dy--; if (down) dy++; if (left) { dx--; p.facing = -1; } if (right) { dx++; p.facing = 1; }
+            if (dx || dy) {
+                const len = Math.hypot(dx, dy);
+                dx /= len; dy /= len;
+                const nx = p.x + dx * 5.8 * dt;
+                const ny = p.y + dy * 5.8 * dt;
+                if (canMove(nx, p.y)) p.x = nx;
+                if (canMove(p.x, ny)) p.y = ny;
+                p.x = Math.max(1.3, Math.min(COLS - 2.3, p.x));
+                p.y = Math.max(1.3, Math.min(ROWS - 2.3, p.y));
+            }
+        }
+
+        function showMsg(t) { message = t; messageTimer = 2.0; }
+
+        function drawChef(x, y, color, name) {
+            const px = x * TILE, py = y * TILE;
+            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+            ctx.beginPath(); ctx.ellipse(px, py + 18, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.roundRect(px - 12, py - 8, 24, 26, 6); ctx.fill();
+            ctx.fillStyle = '#ffeaa7';
+            ctx.beginPath(); ctx.arc(px, py - 16, 11, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#2d3436';
+            ctx.beginPath(); ctx.arc(px - 4, py - 17, 2.2, 0, Math.PI * 2); ctx.arc(px + 4, py - 17, 2.2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.ellipse(px, py - 28, 13, 7, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillRect(px - 9, py - 36, 18, 12);
+            ctx.beginPath(); ctx.ellipse(px, py - 36, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(name, px, py + 28);
+        }
+
+        function draw() {
+            if (gameState !== 'playing' && gameState !== 'paused' && gameState !== 'help') return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    const t = MAP[y][x];
+                    let c = (x + y) % 2 === 0 ? '#636e72' : '#5a6266';
+                    if (t === 1) c = '#1e272e';
+                    else if (t === 2) c = '#dfe6e9';
+                    else if (t === 3) c = '#e17055';
+                    else if (t === 4) c = '#fdcb6e';
+                    else if (t === 5) c = '#74b9ff';
+                    else if (t === 6) c = '#00b894';
+                    else if (t === 7) c = '#636e72';
+                    else if (t === 12) c = '#a29bfe';
+                    else if (t === 13) c = '#00cec9';
+                    else if (t >= 8 && t <= 11) c = THEMES[currentTheme].color;
+
+                    ctx.fillStyle = c;
+                    ctx.fillRect(x * TILE, y * TILE, TILE - 1, TILE - 1);
+
+                    if (t >= 3) {
+                        ctx.font = '18px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                        const icons = { 3: '🔥', 4: '🔪', 5: '🍽️', 6: '📦', 7: '🗑️', 12: '📋', 13: '🚰' };
+                        if (t >= 8 && t <= 11) {
+                            const ing = availableIngredients[t - 8];
+                            ctx.fillText(ING_ICON[ing] || '?', x * TILE + TILE / 2, y * TILE + TILE / 2);
+                        } else {
+                            ctx.fillText(icons[t] || '', x * TILE + TILE / 2, y * TILE + TILE / 2);
+                        }
+                    }
+                }
+            }
+
+            // Mostrar pilha de pratos limpos na estação de pratos
+            if (cleanPlatesAvailable > 0) {
+                const sx = 13 * TILE + TILE / 2, sy = 3 * TILE - 10;
+                ctx.font = '14px sans-serif';
+                ctx.fillStyle = 'rgba(0,0,0,0.85)';
+                ctx.beginPath(); ctx.roundRect(sx - 30, sy - 26, 60, 22, 6); ctx.fill();
+                ctx.fillStyle = '#ffeaa7'; ctx.textAlign = 'center';
+                ctx.fillText(`🍽️ x${cleanPlatesAvailable}`, sx, sy - 13);
+            }
+
+            // Mostrar itens guardados em bancadas
+            for (const [key, item] of Object.entries(storedItems)) {
+                const [cx, cy] = key.split(',').map(Number);
+                const sx = cx * TILE + TILE / 2, sy = cy * TILE - 10;
+                let label = '';
+                if (item.type === 'plate') {
+                    label = item.dirty ? '🍽️💩' : '🍽️';
+                } else {
+                    label = ING_ICON[item.type] || '?';
+                    if (item.state === 'chopped') label = '✂️' + label;
+                    if (item.state === 'cooked') label = '🔥' + label;
+                }
+                ctx.font = '14px sans-serif';
+                ctx.fillStyle = 'rgba(0,0,0,0.85)';
+                ctx.beginPath(); ctx.roundRect(sx - 20, sy - 24, 40, 22, 5); ctx.fill();
+                ctx.fillStyle = '#ffeaa7'; ctx.textAlign = 'center';
+                ctx.fillText(label, sx, sy - 11);
+            }
+
+            // Processamentos (barras de progresso)
+            processings.forEach(proc => {
+                const sx = proc.x * TILE, sy = proc.y * TILE;
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(sx + 4, sy - 14, TILE - 8, 10);
+                ctx.fillStyle = proc.type === 'chop' ? '#fdcb6e' : proc.type === 'cook' ? '#e17055' : '#74b9ff';
+                ctx.fillRect(sx + 4, sy - 14, (TILE - 8) * proc.progress, 10);
+            });
+
+            players.forEach(p => {
+                drawChef(p.x, p.y, p.color, p.name);
+                if (p.holding) {
+                    let label = '';
+                    if (p.holding.type === 'plate') {
+                        label = p.holding.dirty ? '🍽️💩' : (p.holding.contents.length ? p.holding.contents.map(c => ING_ICON[c.type]).join('') : '🍽️');
+                    } else {
+                        label = (p.holding.state === 'chopped' ? '✂️' : p.holding.state === 'cooked' ? '🔥' : '') + (ING_ICON[p.holding.type] || '?');
+                    }
+                    ctx.font = '15px sans-serif';
+                    const w = ctx.measureText(label).width + 12;
+                    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+                    ctx.beginPath(); ctx.roundRect(p.x * TILE - w / 2, p.y * TILE - 58, w, 22, 5); ctx.fill();
+                    ctx.fillStyle = '#ffeaa7'; ctx.textAlign = 'center';
+                    ctx.fillText(label, p.x * TILE, p.y * TILE - 45);
+                }
+            });
+
+            ctx.fillStyle = timeLeft < 15 ? '#ff7675' : '#fff';
+            ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'left';
+            ctx.fillText(`⏱ ${Math.ceil(timeLeft)}s`, 16, 32);
+
+            if (message) {
+                ctx.fillStyle = 'rgba(0,0,0,0.85)';
+                ctx.beginPath(); ctx.roundRect(canvas.width / 2 - 170, 50, 340, 36, 8); ctx.fill();
+                ctx.fillStyle = '#ffeaa7'; ctx.font = '15px sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText(message, canvas.width / 2, 73);
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('score1').textContent = score1;
+            document.getElementById('score2').textContent = score2;
+            document.getElementById('scoreTeam').textContent = scoreTeam;
+        }
+
+        function updateOrdersUI() {
+            const el = document.getElementById('orders');
+            el.innerHTML = '';
+            const cur = getCurrentPlateContents();
+            orders.forEach(o => {
+                const div = document.createElement('div');
+                div.className = 'order';
+                div.style.background = `linear-gradient(145deg, ${o.color}, ${o.color}aa)`;
+                let ings = o.ingredients.map(ing => {
+                    const has = cur.includes(ing);
+                    return `<span class="ing ${has ? 'have' : 'missing'}">${ING_ICON[ing] || ing}</span>`;
+                }).join('');
+                const pct = Math.max(0, o.time / o.maxTime * 100);
+                div.innerHTML = `<div class="name">${o.name}</div><div class="ings">${ings}</div><div class="timer" style="width:${pct}%"></div>`;
+                el.appendChild(div);
+            });
+        }
+
+        function showOverlay(title, html, showBtn = true, btnText = 'OK') {
+            const ov = document.getElementById('overlay');
+            ov.innerHTML = `<h1>${title}</h1><div>${html}</div>`;
+            if (showBtn) {
+                const btn = document.createElement('button');
+                btn.className = 'btn';
+                btn.textContent = btnText;
+                btn.onclick = () => {
+                    if (gameState === 'help' || gameState === 'paused') {
+                        gameState = 'playing';
+                        hideOverlay();
+                    } else if (gameState === 'levelcomplete') {
+                        showLevelSelect();
+                    }
+                };
+                ov.appendChild(btn);
+            }
+            ov.style.display = 'flex';
+        }
+
+        function hideOverlay() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        function calculateStars() {
+            const level = LEVELS[currentLevelIndex];
+            let stars = 0;
+            if (scoreTeam >= level.goal) stars = 1;
+            if (scoreTeam >= level.goal * 1.15 && timeLeft > 8) stars = 2;
+            if (scoreTeam >= level.goal * 1.35 && timeLeft > 15) stars = 3;
+            return stars;
+        }
+
+        function levelComplete() {
+            clearOrderTimeouts();
+            gameState = 'levelcomplete';
+            const stars = calculateStars();
+            const level = LEVELS[currentLevelIndex];
+            saveStars(level.id, stars);
+
+            const starsStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+            showOverlay(
+                stars > 0 ? '🎉 Fase Completa!' : 'Fase Finalizada',
+                `
+                    ${starsStr}<br><br>
+                    Pontuação: <strong>${scoreTeam}</strong> (meta ${level.goal})<br>
+                    P1: ${score1} | P2: ${score2}<br><br>
+                    Estrelas totais agora: ${getTotalStars()}
+                `,
+                true, 'Voltar às Fases'
+            );
+        }
+
+        // Loop principal
+        let lastTime = performance.now();
+        function loop(now) {
+            const dt = Math.min((now - lastTime) / 1000, 0.05);
+            lastTime = now;
+            update(dt);
+            draw();
+            requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
+
+        // Inicia no menu
+        showMenu();
+    </script>
+</body>
+
+</html>
