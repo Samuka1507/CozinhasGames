@@ -1,47 +1,71 @@
-// Bancada de apoio (guardar/pegar itens)
-if (station === 'counter') {
-    const key = `${tx},${ty}`;
-    const item = storedItems[key];
+function handlePlateStation(player) {
+    const h = player.holding;
 
-    // Se o jogador está segurando um prato e há alimento processado na bancada
-    if (player.holding && player.holding.type === 'plate' && item && item.type !== 'plate') {
-        if (player.holding.dirty) {
-            showMsg('Prato sujo! Lave na pia');
+    // Caso 1: Jogador sem nada na mão
+    if (!h) {
+        if (plateStation.plate) {
+            player.holding = plateStation.plate;
+            plateStation.plate = null;
+            showMsg('Prato pego da estação');
+            updateOrdersUI();
             return;
         }
-        if (item.state !== 'chopped' && item.state !== 'cooked') {
-            showMsg('Processe o alimento antes!');
+        if (cleanPlatesAvailable > 0) {
+            player.holding = { type: 'plate', contents: [], dirty: false };
+            cleanPlatesAvailable--;
+            showMsg('Pegou prato limpo');
+            updateOrdersUI();
             return;
         }
-        if (player.holding.contents.some(c => c.type === item.type)) {
-            showMsg('Já tem esse item no prato');
+        showMsg('Sem pratos disponíveis');
+        return;
+    }
+
+    // Caso 2: Jogador segurando prato
+    if (h.type === 'plate') {
+        if (h.dirty) {
+            showMsg('Lave o prato antes de guardar');
             return;
         }
-        // Adiciona ao prato e remove da bancada
-        player.holding.contents.push({ type: item.type, state: item.state });
-        delete storedItems[key];
-        showMsg(`+ ${ING_NAME[item.type] || item.type}`);
+        if (h.contents.length > 0) {
+            showMsg('Prato com comida não pode ser guardado');
+            return;
+        }
+        if (plateStation.plate) {
+            showMsg('Já há um prato na estação');
+            return;
+        }
+        plateStation.plate = h;
+        player.holding = null;
+        showMsg('Prato colocado na estação');
         updateOrdersUI();
         return;
     }
 
-    // Comportamento padrão (guardar/pegar itens)
-    if (player.holding) {
-        if (!storedItems[key]) {
-            storedItems[key] = player.holding;
-            player.holding = null;
-            showMsg('Item deixado na bancada');
-        } else {
-            showMsg('Bancada ocupada');
+    // Caso 3: Jogador segurando alimento processado
+    if (h.state === 'chopped' || h.state === 'cooked') {
+        // Se não houver prato na estação, cria um automaticamente (se houver pratos limpos)
+        if (!plateStation.plate) {
+            if (cleanPlatesAvailable > 0) {
+                plateStation.plate = { type: 'plate', contents: [], dirty: false };
+                cleanPlatesAvailable--;
+                showMsg('Prato colocado automaticamente');
+            } else {
+                showMsg('Sem pratos limpos para usar');
+                return;
+            }
         }
-    } else {
-        if (storedItems[key]) {
-            player.holding = storedItems[key];
-            delete storedItems[key];
-            showMsg('Item pego');
-        } else {
-            showMsg('Bancada vazia');
+        if (plateStation.plate.contents.some(c => c.type === h.type)) {
+            showMsg('Já tem esse item no prato');
+            return;
         }
+        plateStation.plate.contents.push({ type: h.type, state: h.state });
+        player.holding = null;
+        showMsg(`+ ${ING_NAME[h.type] || h.type}`);
+        updateOrdersUI();
+        return;
     }
-    return;
+
+    // Alimento cru ou outro item não processado
+    showMsg('Processe o alimento antes!');
 }

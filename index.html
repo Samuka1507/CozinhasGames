@@ -374,11 +374,9 @@
             { id: 1, theme: 'burger', name: 'Burger 1', time: 100, orders: ['salad', 'meat', 'salad'], goal: 70, starsRequired: 0, plates: 2 },
             { id: 2, theme: 'burger', name: 'Burger 2', time: 95, orders: ['burger', 'toast', 'meat', 'salad'], goal: 120, starsRequired: 1, plates: 3 },
             { id: 3, theme: 'burger', name: 'Burger 3', time: 90, orders: ['burger', 'burger', 'toast', 'salad', 'meat'], goal: 160, starsRequired: 2, plates: 3 },
-
             { id: 4, theme: 'sushi', name: 'Sushi 1', time: 100, orders: ['nigiri', 'sashimi', 'nigiri'], goal: 80, starsRequired: 4, plates: 2 },
             { id: 5, theme: 'sushi', name: 'Sushi 2', time: 95, orders: ['maki', 'avocado', 'nigiri', 'sashimi'], goal: 130, starsRequired: 6, plates: 3 },
             { id: 6, theme: 'sushi', name: 'Sushi 3', time: 90, orders: ['maki', 'avocado', 'maki', 'nigiri', 'sashimi'], goal: 180, starsRequired: 8, plates: 4 },
-
             { id: 7, theme: 'hotdog', name: 'HotDog 1', time: 100, orders: ['plain', 'classic', 'plain'], goal: 80, starsRequired: 10, plates: 3 },
             { id: 8, theme: 'hotdog', name: 'HotDog 2', time: 95, orders: ['classic', 'mustard', 'special', 'plain'], goal: 140, starsRequired: 12, plates: 3 },
             { id: 9, theme: 'hotdog', name: 'HotDog 3', time: 90, orders: ['special', 'classic', 'mustard', 'special', 'plain'], goal: 190, starsRequired: 15, plates: 4 }
@@ -550,9 +548,7 @@
             orderTimeouts = [];
         }
 
-        function remapIngredients() {
-            // tiles 8-11 serão interpretados conforme availableIngredients
-        }
+        function remapIngredients() { }
 
         function initPlayers() {
             players = [
@@ -576,7 +572,6 @@
             updateOrdersUI();
         }
 
-        // Controles
         window.addEventListener('keydown', e => {
             keys[e.key.toLowerCase()] = true;
             if (e.key === 'F1' && gameState === 'playing') { e.preventDefault(); toggleHelp(); }
@@ -651,12 +646,11 @@
                 return;
             }
 
-            // Bancada de apoio
             if (station === 'counter') {
                 const key = `${tx},${ty}`;
                 const item = storedItems[key];
 
-                // Se estiver com prato e houver alimento processado na bancada
+                // Se o jogador está segurando um prato e a bancada tem um alimento processado → adiciona ao prato do jogador
                 if (player.holding && player.holding.type === 'plate' && item && item.type !== 'plate') {
                     if (player.holding.dirty) {
                         showMsg('Prato sujo! Lave na pia');
@@ -677,7 +671,28 @@
                     return;
                 }
 
-                // Comportamento padrão
+                // NOVO: Se o jogador está segurando um alimento processado e a bancada tem um prato limpo → adiciona ao prato da bancada
+                if (player.holding && player.holding.type !== 'plate' && item && item.type === 'plate') {
+                    if (item.dirty) {
+                        showMsg('Prato sujo na bancada. Lave-o primeiro.');
+                        return;
+                    }
+                    if (player.holding.state !== 'chopped' && player.holding.state !== 'cooked') {
+                        showMsg('Processe o alimento antes!');
+                        return;
+                    }
+                    if (item.contents.some(c => c.type === player.holding.type)) {
+                        showMsg('Já tem esse item no prato da bancada');
+                        return;
+                    }
+                    item.contents.push({ type: player.holding.type, state: player.holding.state });
+                    player.holding = null;
+                    showMsg(`+ ${ING_NAME[item.contents[item.contents.length - 1].type] || 'item'} no prato da bancada`);
+                    updateOrdersUI();
+                    return;
+                }
+
+                // Comportamento padrão (guardar/pegar itens)
                 if (player.holding) {
                     if (!storedItems[key]) {
                         storedItems[key] = player.holding;
@@ -697,7 +712,6 @@
                 }
                 return;
             }
-
             // Pia
             if (station === 'sink') {
                 if (player.holding && player.holding.type === 'plate' && player.holding.dirty) {
@@ -743,7 +757,7 @@
         function handlePlateStation(player) {
             const h = player.holding;
 
-            // Sem nada na mão
+            // Caso 1: Jogador sem nada na mão
             if (!h) {
                 if (plateStation.plate) {
                     player.holding = plateStation.plate;
@@ -763,7 +777,7 @@
                 return;
             }
 
-            // Segurando prato
+            // Caso 2: Jogador segurando prato
             if (h.type === 'plate') {
                 if (h.dirty) {
                     showMsg('Lave o prato antes de guardar');
@@ -784,23 +798,31 @@
                 return;
             }
 
-            // Segurando alimento
-            if (!plateStation.plate) {
-                showMsg('Coloque um prato primeiro');
+            // Caso 3: Jogador segurando alimento processado
+            if (h.state === 'chopped' || h.state === 'cooked') {
+                if (!plateStation.plate) {
+                    if (cleanPlatesAvailable > 0) {
+                        plateStation.plate = { type: 'plate', contents: [], dirty: false };
+                        cleanPlatesAvailable--;
+                        showMsg('Prato colocado automaticamente');
+                    } else {
+                        showMsg('Sem pratos limpos para usar');
+                        return;
+                    }
+                }
+                if (plateStation.plate.contents.some(c => c.type === h.type)) {
+                    showMsg('Já tem esse item no prato');
+                    return;
+                }
+                plateStation.plate.contents.push({ type: h.type, state: h.state });
+                player.holding = null;
+                showMsg(`+ ${ING_NAME[h.type] || h.type}`);
+                updateOrdersUI();
                 return;
             }
-            if (h.state !== 'chopped' && h.state !== 'cooked') {
-                showMsg('Processe o alimento antes!');
-                return;
-            }
-            if (plateStation.plate.contents.some(c => c.type === h.type)) {
-                showMsg('Já tem esse item no prato');
-                return;
-            }
-            plateStation.plate.contents.push({ type: h.type, state: h.state });
-            player.holding = null;
-            showMsg(`+ ${ING_NAME[h.type] || h.type}`);
-            updateOrdersUI();
+
+            // Alimento cru
+            showMsg('Processe o alimento antes!');
         }
 
         function tryDeliver(player) {
